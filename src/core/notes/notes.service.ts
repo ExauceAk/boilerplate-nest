@@ -6,16 +6,16 @@ import { ErrorHandlingService } from 'src/common/response/errorHandler.service';
 import { Logger } from 'winston';
 import { Users } from '../users/entities/users.entity';
 import { UsersRepository } from '../users/repositories/users.repository';
-import { CreateStatusDto } from './dto/create-status.dto';
-import { UpdateStatusDto } from './dto/update-status.dto';
-import { Status } from './entities/status.entity';
-import { StatusRepository } from './repositories/status.repository';
+import { CreateNotesDto } from './dto/create-notes.dto';
+import { UpdateNotesDto } from './dto/update-notes.dto';
+import { Notes } from './entities/notes.entity';
+import { NotesRepository } from './repositories/notes.repository';
 @Injectable()
-export class StatusService {
+export class NotesService {
     readonly adminRole: string;
     readonly superAdminRole: string;
     constructor(
-        private readonly statusRepository: StatusRepository,
+        private readonly notesRepository: NotesRepository,
         private readonly errorHandlingService: ErrorHandlingService,
         private readonly configService: ConfigService,
         private readonly usersRepository: UsersRepository,
@@ -57,35 +57,35 @@ export class StatusService {
     }
 
     /**
-     * Create a new status
-     * @param createStatusDto - The data of the status to create
+     * Create a new notes
+     * @param createNotesDto - The data of the notes to create
      * @param userId - The user id
-     * @returns Promise<Status> - The created status>
+     * @returns Promise<Notes> - The created notes>
      */
-    async create(createStatusDto: CreateStatusDto, userId: string) {
+    async create(createNotesDto: CreateNotesDto, userId: string) {
         await this.isAdmin(userId);
-        const { name, type } = createStatusDto;
+        const { name, type } = createNotesDto;
 
-        const status = new Status({
+        const notes = new Notes({
             name,
             type,
         });
-        return this.statusRepository.save(status);
+        return this.notesRepository.save(notes);
     }
 
     /**
-     * Find all status
+     * Find all notes
      * @param userId - The user id
-     * @returns Promise<Status[]> - The found status
+     * @returns Promise<Notes[]> - The found notes
      */
     async findAll(userId: string, page: number, limit: number, query: string) {
-        const statuss = await this.statusRepository.find({});
+        const notess = await this.notesRepository.find({});
 
-        let transformData = statuss.map((status) => {
+        let transformData = notess.map((notes) => {
             return {
-                id: status.id,
-                name: status.name,
-                type: status.type,
+                id: notes.id,
+                name: notes.name,
+                type: notes.type,
             };
         });
 
@@ -120,85 +120,85 @@ export class StatusService {
     }
 
     /**
-     * Find a status by id
-     * @param id - The status id
+     * Find a notes by id
+     * @param id - The notes id
      * @param userId - The user id
-     * @returns Promise<Status> - The found status
+     * @returns Promise<Notes> - The found notes
      */
     async findOne(id: string) {
-        const status = await this.statusRepository.findOne({
+        const notes = await this.notesRepository.findOne({
             where: { id },
         });
 
-        if (!status) {
+        if (!notes) {
             this.errorHandlingService.returnErrorOnNotFound(
-                `Status not found`,
-                `Status not  found with id ${id}`,
+                `Notes not found`,
+                `Notes not  found with id ${id}`,
             );
         }
 
         return {
-            id: status.id,
-            name: status.name,
-            type: status.type,
+            id: notes.id,
+            name: notes.name,
+            type: notes.type,
         };
     }
 
     /**
-     * Update a status
-     * @param id - The status id
-     * @param updateStatusDto - The data of the status to update
+     * Update a notes
+     * @param id - The notes id
+     * @param updateNotesDto - The data of the notes to update
      * @param userId - The user id
-     * @returns Promise<Status> - The updated status
+     * @returns Promise<Notes> - The updated notes
      */
-    async update(id: string, updateStatusDto: UpdateStatusDto, userId: string) {
-        const { name, type } = updateStatusDto;
+    async update(id: string, updateNotesDto: UpdateNotesDto, userId: string) {
+        const { name, type } = updateNotesDto;
 
         await this.isAdmin(userId);
 
-        const status = await this.statusRepository.findOne({
+        const notes = await this.notesRepository.findOne({
             where: { id },
         });
 
-        if (!status) {
+        if (!notes) {
             this.errorHandlingService.returnErrorOnNotFound(
-                `Status  not found`,
-                `Status not found`,
+                `Notes  not found`,
+                `Notes not found`,
             );
         }
 
-        return this.statusRepository.update(
-            { id: status.id },
+        return this.notesRepository.update(
+            { id: notes.id },
             {
-                name: name || status.name,
-                type: type || status.type,
+                name: name || notes.name,
+                type: type || notes.type,
             },
         );
     }
 
     /**
-     * Remove a status
-     * @param id - The status id
+     * Remove a notes
+     * @param id - The notes id
      * @param userId - The user id
      * @returns
      */
     async remove(id: string, userId: string) {
         await this.isAdmin(userId);
 
-        const status = await this.statusRepository.findOne({
+        const notes = await this.notesRepository.findOne({
             where: { id },
             relations: ['owner'],
         });
 
-        if (!status) {
+        if (!notes) {
             this.errorHandlingService.returnErrorOnNotFound(
-                `Status not found`,
-                `Status not found`,
+                `Notes not found`,
+                `Notes not found`,
             );
         }
 
-        await this.statusRepository.softDelete({ id });
+        await this.notesRepository.softDelete({ id });
 
-        return 'Status deleted successfully';
+        return 'Notes deleted successfully';
     }
 }

@@ -19,20 +19,26 @@ import {
     ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/common/guards/auth.guard';
-import { CreateStatusDto } from './dto/create-status.dto';
-import { UpdateStatusDto } from './dto/update-status.dto';
-import { StatusService } from './status.service';
+import { CreateNotesDto } from './dto/create-notes.dto';
+import { UpdateNotesDto } from './dto/update-notes.dto';
+import { NotesService } from './notes.service';
 
-@ApiTags('Status')
-@Controller('status')
+@ApiTags('Notes')
+@Controller('notes')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT')
-export class StatusController {
-    constructor(private readonly statusService: StatusService) {}
+export class NotesController {
+    constructor(private readonly notesService: NotesService) {}
 
+    /**
+     * Create a new notes
+     * @param createNotesDto - The data of the notes to create
+     * @param req - The request object
+     * @returns Promise<Notes> - The created notes>
+     */
     @Post('')
     @ApiOperation({
-        summary: 'Create status',
+        summary: 'Create notes',
     })
     @ApiResponse({
         status: 201,
@@ -46,18 +52,28 @@ export class StatusController {
         status: 401,
         description: 'Unauthorized',
     })
-    create(@Body() createStatusDto: CreateStatusDto, @Request() req: any) {
-        return this.statusService.create(createStatusDto, req.user.id);
+    create(@Body() createNotesDto: CreateNotesDto, @Request() req: any) {
+        return this.notesService.create(createNotesDto, req.user.id);
     }
 
+    /**
+     * Get all the notess
+     * @param req - The request object
+     * @param query - The query string
+     * @param category - The category string
+     * @param page - The page number
+     * @param limit - The limit number
+     * @returns Promise<Notes[]> - The found notes
+     */
+
+    @Get()
     @ApiOperation({
-        summary: 'Get all the statuss',
+        summary: 'Get all the notess',
     })
     @ApiResponse({
         status: HttpStatus.OK,
         description: 'Success',
     })
-    @Get()
     @ApiQuery({ name: 'query', required: false, type: String })
     @ApiQuery({ name: 'category', required: false, type: String })
     findAll(
@@ -72,7 +88,7 @@ export class StatusController {
             100,
             Math.max(1, parseInt(limit as any, 10) || 5),
         );
-        return this.statusService.findAll(
+        return this.notesService.findAll(
             req.user.id,
             validatedPage,
             validatedLimit,
@@ -80,43 +96,63 @@ export class StatusController {
         );
     }
 
+    /**
+     * Get a notes by id
+     * @param id - The notes id
+     * @param req - The request object
+     * @returns Promise<Notes> - The found notes
+     */
+
+    @Get(':id')
     @ApiOperation({
-        summary: 'Get a status by id',
+        summary: 'Get a notes by id',
     })
     @ApiResponse({
         status: HttpStatus.OK,
         description: 'Success',
     })
-    @Get(':id')
     findOne(@Param('id') id: string) {
-        return this.statusService.findOne(id);
+        return this.notesService.findOne(id);
     }
 
+    /**
+     * Update a notes
+     * @param id - The notes id
+     * @param updateNotesDto - The update notes dto
+     * @param req - The request object
+     * @returns Promise<Notes> - The updated notes
+     */
+    @Patch(':id')
     @ApiOperation({
-        summary: 'Update a status',
+        summary: 'Update a notes',
     })
     @ApiResponse({
         status: HttpStatus.OK,
         description: 'Success',
     })
-    @Patch(':id')
     update(
         @Param('id') id: string,
-        @Body() updateStatusDto: UpdateStatusDto,
+        @Body() updateNotesDto: UpdateNotesDto,
         @Request() req: any,
     ) {
-        return this.statusService.update(id, updateStatusDto, req.user.id);
+        return this.notesService.update(id, updateNotesDto, req.user.id);
     }
 
+    /**
+     * Delete a notes
+     * @param id - The notes id
+     * @param req - The request object
+     * @returns Promise<Notes> - The deleted notes
+     */
+    @Delete(':id')
     @ApiOperation({
-        summary: 'Delete a status',
+        summary: 'Delete a notes',
     })
     @ApiResponse({
         status: HttpStatus.OK,
         description: 'Success',
     })
-    @Delete(':id')
     remove(@Param('id') id: string, @Request() req: any) {
-        return this.statusService.remove(id, req.user.id);
+        return this.notesService.remove(id, req.user.id);
     }
 }
