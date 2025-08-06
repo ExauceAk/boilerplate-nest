@@ -5,26 +5,26 @@ import { ErrorHandlingService } from 'src/common/response/errorHandler.service';
 import { DatabaseModule } from 'src/libs/database/database.module';
 import { Users } from '../users/entities/users.entity';
 import { UsersRepository } from '../users/repositories/users.repository';
-import { Status } from './entities/status.entity';
-import { StatusRepository } from './repositories/status.repository';
-import { StatusController } from './status.controller';
-import { StatusService } from './status.service';
+import { Notes } from './entities/notes.entity';
+import { NotesRepository } from './repositories/notes.repository';
+import { NotesController } from './notes.controller';
+import { NotesService } from './notes.service';
 
 @Module({
     imports: [
         DatabaseModule,
-        DatabaseModule.forFeature([Status, Users]),
+        DatabaseModule.forFeature([Notes, Users]),
         ConfigModule.forRoot({
             isGlobal: true,
         }),
         LoggerModule,
     ],
-    controllers: [StatusController],
+    controllers: [NotesController],
     providers: [
-        StatusService,
-        StatusRepository,
+        NotesService,
+        NotesRepository,
         ErrorHandlingService,
         UsersRepository,
     ],
 })
-export class StatusModule {}
+export class NotesModule {}

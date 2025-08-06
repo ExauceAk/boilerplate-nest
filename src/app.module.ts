@@ -7,7 +7,7 @@ import { JwtStrategy } from './common/guards/jwt.strategy';
 import { loggerTransports } from './common/logger/transports/transports';
 import { FileModule } from './core/files/files.module';
 import { RolesModule } from './core/roles/roles.module';
-import { StatusModule } from './core/status/status.module';
+import { NotesModule } from './core/notes/notes.module';
 import { UsersModule } from './core/users/users.module';
 import { CacheModule } from './libs/cache/cache.module';
 
@@ -22,7 +22,7 @@ import { CacheModule } from './libs/cache/cache.module';
         FileModule.register(),
         UsersModule,
         RolesModule,
-        StatusModule,
+        NotesModule,
         CacheModule,
     ],
     controllers: [AppController],
