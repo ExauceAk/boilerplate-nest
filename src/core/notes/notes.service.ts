@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { ErrorHandlingService } from 'src/common/response/errorHandler.service';
 import { Logger } from 'winston';
-import { Users } from '../users/entities/users.entity';
 import { UsersRepository } from '../users/repositories/users.repository';
 import { CreateNotesDto } from './dto/create-notes.dto';
 import { UpdateNotesDto } from './dto/update-notes.dto';
@@ -29,33 +28,6 @@ export class NotesService {
             .toLowerCase();
     }
 
-    async isAdmin(userId: string): Promise<Users> {
-        const isUserExist = await this.usersRepository.findOne({
-            where: { id: userId },
-            relations: ['role'],
-        });
-
-        if (!isUserExist) {
-            this.errorHandlingService.returnErrorOnNotFound(
-                `User not found`,
-                `User not found`,
-            );
-        }
-
-        if (
-            !(
-                isUserExist.role.label === this.superAdminRole ||
-                isUserExist.role.label === this.adminRole
-            )
-        ) {
-            this.errorHandlingService.returnErrorOnForbidden(
-                `Access denied`,
-                `Access denied for role ${isUserExist.role.label}`,
-            );
-        }
-        return isUserExist;
-    }
-
     /**
      * Create a new notes
      * @param createNotesDto - The data of the notes to create
@@ -63,14 +35,37 @@ export class NotesService {
      * @returns Promise<Notes> - The created notes>
      */
     async create(createNotesDto: CreateNotesDto, userId: string) {
-        await this.isAdmin(userId);
-        const { name, type } = createNotesDto;
+        const { name, content } = createNotesDto;
+
+        const owner = await this.usersRepository.findOne({
+            where: { id: userId },
+        });
+
+        if (!owner) {
+            this.errorHandlingService.returnErrorOnNotFound(
+                `User not found`,
+                `User not found`,
+            );
+        }
 
         const notes = new Notes({
             name,
-            type,
+            content,
+            owner,
         });
         return this.notesRepository.save(notes);
+    }
+
+    private transformData(data: Notes) {
+        return {
+            id: data.id,
+            name: data.name,
+            type: data.content,
+            owner: {
+                id: data.owner.id,
+                name: data.owner.fullname,
+            },
+        };
     }
 
     /**
@@ -81,13 +76,7 @@ export class NotesService {
     async findAll(userId: string, page: number, limit: number, query: string) {
         const notess = await this.notesRepository.find({});
 
-        let transformData = notess.map((notes) => {
-            return {
-                id: notes.id,
-                name: notes.name,
-                type: notes.type,
-            };
-        });
+        let transformData = notess.map((notes) => this.transformData(notes));
 
         if (query) {
             transformData = transformData.filter((data) => {
@@ -137,11 +126,7 @@ export class NotesService {
             );
         }
 
-        return {
-            id: notes.id,
-            name: notes.name,
-            type: notes.type,
-        };
+        return this.transformData(notes);
     }
 
     /**
@@ -152,12 +137,11 @@ export class NotesService {
      * @returns Promise<Notes> - The updated notes
      */
     async update(id: string, updateNotesDto: UpdateNotesDto, userId: string) {
-        const { name, type } = updateNotesDto;
-
-        await this.isAdmin(userId);
+        const { name, content } = updateNotesDto;
 
         const notes = await this.notesRepository.findOne({
             where: { id },
+            relations: ['owner'],
         });
 
         if (!notes) {
@@ -167,11 +151,18 @@ export class NotesService {
             );
         }
 
+        if (notes.owner.id !== userId) {
+            this.errorHandlingService.returnErrorOnForbidden(
+                `Access denied`,
+                `Access denied for user ${notes.owner.id}`,
+            );
+        }
+
         return this.notesRepository.update(
             { id: notes.id },
             {
                 name: name || notes.name,
-                type: type || notes.type,
+                content: content || notes.content,
             },
         );
     }
@@ -183,8 +174,6 @@ export class NotesService {
      * @returns
      */
     async remove(id: string, userId: string) {
-        await this.isAdmin(userId);
-
         const notes = await this.notesRepository.findOne({
             where: { id },
             relations: ['owner'],
@@ -194,6 +183,13 @@ export class NotesService {
             this.errorHandlingService.returnErrorOnNotFound(
                 `Notes not found`,
                 `Notes not found`,
+            );
+        }
+
+        if (notes.owner.id !== userId) {
+            this.errorHandlingService.returnErrorOnForbidden(
+                `Access denied`,
+                `Access denied for user ${notes.owner.id}`,
             );
         }
 

@@ -11,10 +11,10 @@ export class CreateNotesDto {
     name: string;
 
     @ApiProperty({
-        description: 'The type of the notes',
-        example: 'Notes type',
+        description: 'The content of the notes',
+        example: 'Notes content',
+        type: 'string',
     })
-    @IsNotEmpty({ message: 'Type is required' })
-    @IsString({ message: 'Type should be a string' })
-    type: string;
+    @IsString({ message: 'Content should be a string' })
+    content: string;
 }
