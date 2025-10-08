@@ -11,29 +11,22 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { UserStatus } from 'src/common/enum/user.enum';
 import { ErrorHandlingService } from 'src/common/response/errorHandler.service';
-import { Files } from 'src/core/files/entities/file.entity';
-import { FilesRepository } from 'src/core/files/files.repository';
-import { Roles } from 'src/core/roles/entities/roles.entity';
-import { RolesRepository } from 'src/core/roles/roles.repository';
-import OtherUtils from 'src/utils/tools';
+import OtherUtils from 'src/common/utils/tools';
+import { MailerService } from 'src/infra/mailer/mailer.service';
+import { PasswordHashService } from 'src/infra/password_hash/passwordHash.service';
+import { ResetPasswordDto } from 'src/modules/users/dto/other.dto';
+import { Users } from 'src/modules/users/entities/users.entity';
+import { UsersRepository } from 'src/modules/users/repositories/users.repository';
 import { Logger } from 'winston';
 import { formatValidationErrors } from '../../../common/response/validation-unique-error.helper';
-import EmailSendingConfig from '../../../helpers/others/emailSendingConfig';
-import { PasswordHashService } from '../../../helpers/password_hash/passwordHash.service';
-import { MailerService } from '../../../libs/mailer/mailer.service';
 import { LoginUserDto } from '../dto/login.dto';
-import { ResetPasswordDto, UpdateProfileDto } from '../dto/other.dto';
 import { RegisterUserDto } from '../dto/register.dto';
-import { ResendUserCodeDto } from '../dto/resend-userCode.dto';
-import { VerifyUserCodeDto } from '../dto/verify-userCode.dto';
-import { Users } from '../entities/users.entity';
 import { ResetPasswordRequestRepository } from '../repositories/reset_password.repository';
 import { UsersCodeRepository } from '../repositories/user_code.repository';
-import { UsersRepository } from '../repositories/users.repository';
 import { ResetPasswordRequestService } from './resetPasswordRequest.service';
 import { UserCodeService } from './users_code.service';
+import EmailSendingConfig from 'src/config/mail.config';
 
 @Injectable()
 export class AuthService {
@@ -41,8 +34,8 @@ export class AuthService {
    * Service responsible for managing users
    */
 
-  readonly resetPasswordLink: string;
-  readonly landingPageLink: string;
+  readonly resetPasswordLink: string | undefined;
+  readonly landingPageLink: string | undefined;
 
   constructor(
     @Inject(WINSTON_MODULE_PROVIDER) readonly logger: Logger,
@@ -57,8 +50,6 @@ export class AuthService {
     readonly userCodeRepository: UsersCodeRepository,
     @Inject(forwardRef(() => ResetPasswordRequestService))
     private readonly resetPasswordRequestService: ResetPasswordRequestService,
-    private readonly filesRepository: FilesRepository,
-    private readonly rolesRepository: RolesRepository,
   ) {
     this.configService.get<string>('LANDING_PAGE_LINK');
     this.resetPasswordLink = this.configService.get<string>(
@@ -126,7 +117,7 @@ export class AuthService {
   async handleBeforeLoginLogic(user: Users): Promise<object> {
     const userCode = await this.userCodeService.createUserCode(user);
     console.log('otpCodeLog', userCode);
-    const name = user.fullname ? user.fullname.trim() : 'User';
+    const name = user.username ? user.username.trim() : 'User';
     const html = EmailSendingConfig.buildEmailTemplate(
       '../../../src/utils/templates/verify-code-email.hbs',
       {
@@ -187,15 +178,8 @@ export class AuthService {
 
     return {
       id: user.id,
-      fullname: user.fullname,
       username: user.username,
       email: user.email,
-      isAuthorized: user.isAuthorized,
-      avatar: user.avatar?.path ?? null,
-      role: {
-        id: user.role.id,
-        label: user.role.label,
-      },
     };
   }
 
@@ -209,7 +193,7 @@ export class AuthService {
       `Registering user with data: ${JSON.stringify(registerUserDto)}`,
     );
 
-    const { fullname, username, email, password, userAvatar } = registerUserDto;
+    const { username, email, password } = registerUserDto;
 
     //hash password
     const hashedPassword = await this.hashService.hashPassword(password);
@@ -236,43 +220,10 @@ export class AuthService {
       );
     }
 
-    const isFileExist = await this.filesRepository.findOne({
-      where: { path: userAvatar },
-    });
-
-    if (!isFileExist) {
-      this.errorHandlingService.returnErrorOnNotFound(
-        'File not found',
-        `File with id ${userAvatar} not found`,
-      );
-    }
-
-    const users = await this.usersRepository.find({});
-
-    let role: Roles;
-
-    let isAuthorized: boolean;
-
-    if (users.length > 0) {
-      role = await this.rolesRepository.findOne({
-        where: { label: this.userRole },
-      });
-      isAuthorized = false;
-    } else {
-      role = await this.rolesRepository.findOne({
-        where: { label: this.superAdminRole },
-      });
-      isAuthorized = true;
-    }
-
     const newUser = new Users({
-      fullname,
       username,
       email,
       password: hashedPassword,
-      avatar: isFileExist,
-      role,
-      isAuthorized,
     });
 
     await this.usersRepository.save(newUser);
@@ -298,13 +249,6 @@ export class AuthService {
       throw new NotFoundException(`No account, register please`);
     }
 
-    if (!user.isAuthorized) {
-      this.errorHandlingService.returnErrorOnForbidden(
-        `User not authorized`,
-        `User not authorized`,
-      );
-    }
-
     if (!user.password) {
       this.logger.warn(
         `User doesn't have a password, sending an email to him to set up his password`,
@@ -316,72 +260,6 @@ export class AuthService {
 
     await this.checkPasswordWithHashed(password, user);
     return await this.generateUserTokenResponse(user);
-  }
-
-  /**
-   * Verify user code provided with the existing one
-   * @param verifyUserCodeDto - The data for the verification
-   * @returns Promise<Users> - The user object if verified, otherwise throws an error
-   */
-  async verifyUserCode(
-    verifyUserCodeDto: VerifyUserCodeDto,
-  ): Promise<{ token: string }> {
-    const { email, code } = verifyUserCodeDto;
-    this.logger.info(
-      `Verifying user code with data: ${JSON.stringify(verifyUserCodeDto)}`,
-    );
-    const userCode = await this.userCodeService.verifyUserCode({
-      email,
-      code,
-    });
-    await this.userCodeService.deleteUserCode(userCode.user.id);
-    const userToken = await this.generateUserTokenResponse(userCode.user);
-
-    const userData = {
-      id: userCode.user.id,
-      email: userCode.user.email,
-      fullname: userCode.user.fullname,
-      status: UserStatus.ACTIVE,
-    };
-
-    return {
-      ...userData,
-      token: userToken.token,
-    };
-  }
-
-  /**
-   * Admin resend code to a user
-   * @param resendUserCodeDto - The data for the resend
-   * @returns Promise<Users> - The user object if found, otherwise throws an error
-   */
-  async resendUserCode(resendUserCodeDto: ResendUserCodeDto) {
-    const { email } = resendUserCodeDto;
-    this.logger.info(`Logging in user with data: ${email}`);
-
-    const user = await this.usersRepository.findOne({
-      where: { email: email?.trim(), deleted: false },
-    });
-
-    if (!user)
-      this.errorHandlingService.returnErrorOnForbidden(
-        `User with ${email} not found`,
-        'Please check your credentials',
-      );
-
-    const isUserCodeExist = await this.userCodeRepository.findOne({
-      where: { user: { id: user.id }, deleted: false },
-    });
-
-    if (!isUserCodeExist) {
-      this.errorHandlingService.returnErrorOnForbidden(
-        `User with UserCode not found`,
-        'Please check try login again',
-      );
-    }
-
-    await this.handleBeforeLoginLogic(user);
-    return user;
   }
 
   /**
@@ -419,7 +297,12 @@ export class AuthService {
 
     const hashedPassword = await this.hashService.hashPassword(password);
 
-    await this.passwordChange(isUserExist, hashedPassword);
+    await this.usersRepository.update(
+      { id: isUserExist.id },
+      {
+        password: hashedPassword,
+      },
+    );
     this.logger.info(`Post password change executed successfully`);
 
     await this.resetPasswordRequestService.deleteResetPasswordRequest(

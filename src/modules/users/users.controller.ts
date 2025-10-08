@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Patch,
-  Query,
   Req,
   Request,
   UseGuards,
@@ -11,7 +10,6 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
-  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -20,13 +18,13 @@ import { UpdatePasswordDto, UpdateProfileDto } from './dto/other.dto';
 import { Users } from './entities/users.entity';
 import { UsersService } from './services/users.service';
 
+@ApiBearerAuth('JWT')
+@UseGuards(JwtAuthGuard)
+@ApiTags('Users')
 @Controller('users')
-@ApiTags('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiOperation({
     summary: 'Get the current user',
@@ -45,48 +43,6 @@ export class UsersController {
     return this.usersService.getUserById(req.user.id);
   }
 
-  @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
-  @Get('')
-  @ApiOperation({
-    summary: 'Get the current user',
-    description: 'Get the current user',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Return the current user',
-    type: Users,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized',
-  })
-  @ApiQuery({ name: 'query', required: false })
-  @ApiQuery({ name: 'department', required: false })
-  @ApiQuery({ name: 'role', required: false })
-  @ApiQuery({ name: 'status', required: false, type: String })
-  async getAllUsers(
-    @Request() req: any,
-    @Query('query') query: string,
-    @Query('department') department: string,
-    @Query('role') role: string,
-    @Query('status') status: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 5,
-  ) {
-    return this.usersService.getAllUsers(
-      req.user.id,
-      page,
-      limit,
-      query,
-      department,
-      role,
-      status,
-    );
-  }
-
-  @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
   @Patch('update-password')
   @ApiOperation({
     summary: 'Update a user password',
@@ -110,8 +66,6 @@ export class UsersController {
     return this.usersService.updatePassword(req.user.id, updatePasswordDto);
   }
 
-  @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
   @Patch('update-profile')
   @ApiOperation({
     summary: 'Update a user password',

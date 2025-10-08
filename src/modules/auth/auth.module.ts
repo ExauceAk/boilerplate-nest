@@ -5,19 +5,19 @@ import { MailConfig } from 'src/config/mail.config';
 import { DatabaseModule } from 'src/infra/database/database.module';
 import { MailerModule } from 'src/infra/mailer/mailer.module';
 import { MailerService } from 'src/infra/mailer/mailer.service';
+import { PasswordHashService } from 'src/infra/password_hash/passwordHash.service';
 import { TokenVerify } from '../../common/guards/jwt.strategy';
 import { ErrorHandlingService } from '../../common/response/errorHandler.service';
 import { Users } from '../users/entities/users.entity';
 import { UsersRepository } from '../users/repositories/users.repository';
-import { UsersService } from '../users/services/users.service';
 import { AuthController } from './auth.controller';
 import { ResetPasswordRequest } from './entities/resetPasswordRequest.entity';
 import { UsersCode } from './entities/user_code.entity';
 import { ResetPasswordRequestRepository } from './repositories/reset_password.repository';
 import { UsersCodeRepository } from './repositories/user_code.repository';
+import { AuthService } from './services/auth.service';
 import { ResetPasswordRequestService } from './services/resetPasswordRequest.service';
 import { UserCodeService } from './services/users_code.service';
-import { PasswordHashService } from 'src/infra/password_hash/passwordHash.service';
 
 @Module({
   imports: [
@@ -30,7 +30,7 @@ import { PasswordHashService } from 'src/infra/password_hash/passwordHash.servic
   ],
   controllers: [AuthController],
   providers: [
-    UsersService,
+    AuthService,
     PasswordHashService,
     UsersCodeRepository,
     UserCodeService,
@@ -43,6 +43,6 @@ import { PasswordHashService } from 'src/infra/password_hash/passwordHash.servic
     ErrorHandlingService,
     OtherUtils,
   ],
-  exports: [UsersService, UsersCodeRepository, ResetPasswordRequestService],
+  exports: [AuthService, UsersCodeRepository, ResetPasswordRequestService],
 })
-export class UsersModule {}
+export class AuthModule {}

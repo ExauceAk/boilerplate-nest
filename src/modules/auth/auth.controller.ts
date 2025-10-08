@@ -21,8 +21,8 @@ import { ResetPasswordRequestService } from './services/resetPasswordRequest.ser
 import { Users } from '../users/entities/users.entity';
 import { EmailDto, ResetPasswordDto } from '../users/dto/other.dto';
 
-@Controller('Auth')
-@ApiTags('auth')
+@ApiTags('Auth')
+@Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,

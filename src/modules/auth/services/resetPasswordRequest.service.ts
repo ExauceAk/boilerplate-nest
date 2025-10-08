@@ -1,18 +1,22 @@
 import {
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ResetPasswordRequest } from '../entities/resetPasswordRequest.entity';
 import EmailSendingConfig from 'src/config/mail.config';
 import { Users } from 'src/modules/users/entities/users.entity';
-import { UsersService } from 'src/modules/users/services/users.service';
+import { UsersRepository } from 'src/modules/users/repositories/users.repository';
+import { ResetPasswordRequest } from '../entities/resetPasswordRequest.entity';
+import { AuthService } from './auth.service';
 
 @Injectable()
 export class ResetPasswordRequestService {
   constructor(
-    // @Inject(forwardRef(() => UsersService))
-    private readonly usersService: UsersService,
+    private readonly usersRepository: UsersRepository,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
   ) {}
 
   /**
@@ -29,7 +33,7 @@ export class ResetPasswordRequestService {
       const hours = Math.floor(timeDiff / (1000 * 60 * 60));
       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
 
-      this.usersService.resetPasswordRequestRepository.update(
+      this.authService.resetPasswordRequestRepository.update(
         { id: request.id },
         { count: 1 },
       );
@@ -49,7 +53,7 @@ export class ResetPasswordRequestService {
     const now = new Date();
 
     if (request.expireAt < now) {
-      this.usersService.logger.warn('Reset password link expired.');
+      this.authService.logger.warn('Reset password link expired.');
       throw new ForbiddenException(
         'Reset password link has expired. Please request a new link.',
       );
@@ -63,24 +67,24 @@ export class ResetPasswordRequestService {
    * @private Does not return anything
    */
   private sendResetPasswordEmail(user: Users, resetRequestId: string): void {
-    const { fullname, email } = user;
-    const name = fullname ? fullname.trim() : 'User';
-    const resetPasswordLink = `${this.usersService.resetPasswordLink}${resetRequestId}`;
+    const { username, email } = user;
+    const name = username ? username.trim() : 'User';
+    const resetPasswordLink = `${this.authService.resetPasswordLink}${resetRequestId}`;
     const emailTemplate = EmailSendingConfig.buildEmailTemplate(
       '../../../src/utils/templates/forgot-password.hbs',
       {
         name,
         resetPasswordLink,
         email,
-        url: this.usersService.landingPageLink,
+        url: this.authService.landingPageLink,
         year: new Date().getFullYear(),
       },
     );
 
-    this.usersService.emailService
+    this.authService.emailService
       .sendMail(email.trim(), 'Reset Password', emailTemplate)
       .catch((error) => {
-        this.usersService.logger.error(`Email failed to send: ${error}`);
+        this.authService.logger.error(`Email failed to send: ${error}`);
       });
   }
 
@@ -95,7 +99,7 @@ export class ResetPasswordRequestService {
     passwordExpireAt: Date,
   ): Promise<ResetPasswordRequest> {
     const existingRequest =
-      await this.usersService.resetPasswordRequestRepository.findOne({
+      await this.authService.resetPasswordRequestRepository.findOne({
         where: { user: { id: user.id }, deleted: false },
       });
 
@@ -109,14 +113,14 @@ export class ResetPasswordRequestService {
         existingRequest.delayDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
       }
 
-      await this.usersService.resetPasswordRequestRepository.update(
+      await this.authService.resetPasswordRequestRepository.update(
         { id: existingRequest.id },
         existingRequest,
       );
       return existingRequest;
     }
 
-    return this.usersService.resetPasswordRequestRepository.create(
+    return this.authService.resetPasswordRequestRepository.create(
       new ResetPasswordRequest({
         user,
         expireAt: passwordExpireAt,
@@ -132,13 +136,13 @@ export class ResetPasswordRequestService {
    */
   async getResetPasswordRequestById(id: string): Promise<Users> {
     const resetRequest =
-      await this.usersService.resetPasswordRequestRepository.findOne({
+      await this.authService.resetPasswordRequestRepository.findOne({
         where: { id, deleted: false },
         relations: ['user', 'user'],
       });
 
     if (!resetRequest) {
-      this.usersService.logger.error('Reset password request not found');
+      this.authService.logger.error('Reset password request not found');
       throw new NotFoundException('Reset password request not found');
     }
 
@@ -161,12 +165,12 @@ export class ResetPasswordRequestService {
    * @returns Promise<object> - The response message
    */
   async createANewRequestForResetPassword(email: string, expiredAt: Date) {
-    const isUserExist = await this.usersService.usersRepository.findOne({
+    const isUserExist = await this.usersRepository.findOne({
       where: { email, deleted: false },
     });
 
     if (!isUserExist) {
-      this.usersService.logger.error('User not found');
+      this.authService.logger.error('User not found');
       throw new NotFoundException('User not found');
     }
     const resetRequest = await this.handleResetPasswordRequest(
@@ -178,7 +182,7 @@ export class ResetPasswordRequestService {
       try {
         this.sendResetPasswordEmail(isUserExist, resetRequest.id);
       } catch (error) {
-        this.usersService.logger.error(
+        this.authService.logger.error(
           'Failed to send reset password email',
           error,
         );
@@ -194,10 +198,10 @@ export class ResetPasswordRequestService {
    * @returns Promise<object> - The response message
    */
   async deleteResetPasswordRequest(userId: string): Promise<object> {
-    this.usersService.logger.info(
+    this.authService.logger.info(
       `Deleting reset password request for user ID: ${userId}`,
     );
-    await this.usersService.resetPasswordRequestRepository.delete({
+    await this.authService.resetPasswordRequestRepository.delete({
       user: { id: userId, deleted: false },
     });
     return { message: 'Request deleted successfully' };

@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { VerifyUserCodeDto } from '../dto/verify-userCode.dto';
 import { UsersCode } from '../entities/user_code.entity';
-import { Users } from '../entities/users.entity';
-import { UsersService } from './users.service';
+import { AuthService } from './auth.service';
+import { Users } from 'src/modules/users/entities/users.entity';
 
 @Injectable()
 export class UserCodeService {
@@ -18,8 +18,8 @@ export class UserCodeService {
    * Service responsible for managing user's code
    */
   constructor(
-    @Inject(forwardRef(() => UsersService))
-    private readonly usersService: UsersService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
   ) {}
 
   /**
@@ -28,10 +28,10 @@ export class UserCodeService {
    * @param email - The user email
    */
   async getUserCodeByUserEmail(email: string): Promise<UsersCode> {
-    this.usersService.logger.info(
+    this.authService.logger.info(
       `Searching for user code with user email: ${email}`,
     );
-    const isUserCodeExist = await this.usersService.userCodeRepository.findOne({
+    const isUserCodeExist = await this.authService.userCodeRepository.findOne({
       where: {
         user: { email: email.trim(), deleted: false },
         deleted: false,
@@ -39,7 +39,7 @@ export class UserCodeService {
       relations: ['user'],
     });
     if (!isUserCodeExist) {
-      this.usersService.logger.error(
+      this.authService.logger.error(
         `User code with user email ${email} not found`,
       );
       throw new NotFoundException('OTP not found');
@@ -52,22 +52,22 @@ export class UserCodeService {
    */
   async verifyUserCode(verifyUserCode: VerifyUserCodeDto): Promise<UsersCode> {
     const { email, code } = verifyUserCode;
-    this.usersService.logger.info(
+    this.authService.logger.info(
       `Verifying user code with data: ${JSON.stringify(verifyUserCode)}`,
     );
     const isUserCodeExist = await this.getUserCodeByUserEmail(email);
     if (isUserCodeExist.expireAt < new Date()) {
-      this.usersService.logger.error(
+      this.authService.logger.error(
         `User code has expired at ${isUserCodeExist.expireAt}`,
       );
       throw new BadRequestException('OTP expired');
     }
-    const isCodeMatched = await this.usersService.hashService.comparePassword(
+    const isCodeMatched = await this.authService.hashService.comparePassword(
       code,
       isUserCodeExist.code,
     );
     if (!isCodeMatched) {
-      this.usersService.logger.error(`User code is not valid`);
+      this.authService.logger.error(`User code is not valid`);
       throw new BadRequestException('Invalid OTP');
     }
     return isUserCodeExist;
@@ -79,20 +79,20 @@ export class UserCodeService {
    * @returns Promise<UsersCode> - The updated user code object
    */
   async incrementCountAndSetDelayDate(userCode: UsersCode): Promise<string> {
-    this.usersService.logger.info(
+    this.authService.logger.info(
       `Incrementing user code count and setting delay date`,
     );
     userCode.count += 1;
-    const code = this.usersService.otherUtils.generateNumber(6);
-    userCode.code = await this.usersService.hashService.hashPassword(code);
+    const code = this.authService.otherUtils.generateNumber(6);
+    userCode.code = await this.authService.hashService.hashPassword(code);
     userCode.expireAt = new Date(Date.now() + 6 * 60 * 1000);
 
     if (userCode.count >= 5) {
-      this.usersService.logger.info(`User code count is 5, setting delay date`);
+      this.authService.logger.info(`User code count is 5, setting delay date`);
       userCode.delayDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
 
-    await this.usersService.userCodeRepository.update(
+    await this.authService.userCodeRepository.update(
       { id: userCode.id },
       userCode,
     );
@@ -105,21 +105,21 @@ export class UserCodeService {
    * @returns Promise<string> - The code generated
    */
   async createUserCode(user: Users) {
-    this.usersService.logger.info(`Creating user code with data: ${user.id}`);
-    const isUserCodeExist = await this.usersService.userCodeRepository.findOne({
+    this.authService.logger.info(`Creating user code with data: ${user.id}`);
+    const isUserCodeExist = await this.authService.userCodeRepository.findOne({
       where: { user: { id: user.id }, deleted: false },
     });
     if (isUserCodeExist) return await this.askNewCode(user);
 
-    const code = this.usersService.otherUtils.generateNumber(6);
+    const code = this.authService.otherUtils.generateNumber(6);
     const userCode = new UsersCode({
       user: user,
-      code: await this.usersService.hashService.hashPassword(code),
+      code: await this.authService.hashService.hashPassword(code),
       expireAt: new Date(Date.now() + 6 * 60 * 1000),
       count: 0,
       // delayDate: null,
     });
-    await this.usersService.userCodeRepository.save(userCode);
+    await this.authService.userCodeRepository.save(userCode);
     return code;
   }
 
@@ -129,13 +129,13 @@ export class UserCodeService {
    * @param user - The user to create the code for
    */
   async askNewCode(user: Users) {
-    this.usersService.logger.info(`Creating user code with data: ${user.id}`);
-    const isUserCodeExist = await this.usersService.userCodeRepository.findOne({
+    this.authService.logger.info(`Creating user code with data: ${user.id}`);
+    const isUserCodeExist = await this.authService.userCodeRepository.findOne({
       where: { user: { id: user.id }, deleted: false },
     });
 
     if (!isUserCodeExist) {
-      this.usersService.logger.warn(
+      this.authService.logger.warn(
         `User code not found, he should log in first`,
       );
       throw new ForbiddenException(
@@ -143,19 +143,19 @@ export class UserCodeService {
       );
     }
 
-    this.usersService.logger.info(
+    this.authService.logger.info(
       'verifying if the user has reached the maximum attempt',
     );
 
     if (!isUserCodeExist.delayDate) {
-      this.usersService.logger.info(
+      this.authService.logger.info(
         `User code count is less than 5, incrementing count`,
       );
       return await this.incrementCountAndSetDelayDate(isUserCodeExist);
     }
 
     if (isUserCodeExist.delayDate && isUserCodeExist.delayDate > new Date()) {
-      this.usersService.logger.warn(`User must wait until delay date`);
+      this.authService.logger.warn(`User must wait until delay date`);
       const currentDate = new Date();
       const delayDate = isUserCodeExist.delayDate;
       const delayInHours = Math.ceil(
@@ -167,7 +167,7 @@ export class UserCodeService {
       );
     }
     if (isUserCodeExist.delayDate && isUserCodeExist.delayDate < new Date()) {
-      this.usersService.logger.info(
+      this.authService.logger.info(
         `User code delay date has passed, resetting count and delay date`,
       );
       // isUserCodeExist.delayDate = null;
@@ -182,8 +182,8 @@ export class UserCodeService {
    * @returns Promise<void> - The deleted user code object
    */
   async deleteUserCode(userId: string): Promise<object> {
-    this.usersService.logger.info(`Deleting user code with user ID: ${userId}`);
-    await this.usersService.userCodeRepository.delete({
+    this.authService.logger.info(`Deleting user code with user ID: ${userId}`);
+    await this.authService.userCodeRepository.delete({
       user: { id: userId, deleted: false },
     });
     return { message: 'Code deleted successfully' };

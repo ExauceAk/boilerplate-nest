@@ -1,6 +1,5 @@
 import {
   ArgumentMetadata,
-  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
@@ -8,32 +7,21 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { UserStatus } from 'src/common/enum/user.enum';
 import { ErrorHandlingService } from 'src/common/response/errorHandler.service';
-import { Files } from 'src/core/files/entities/file.entity';
-import { FilesRepository } from 'src/core/files/files.repository';
-import { RolesRepository } from 'src/core/roles/roles.repository';
-import OtherUtils from 'src/utils/tools';
+import OtherUtils from 'src/common/utils/tools';
+import { MailerService } from 'src/infra/mailer/mailer.service';
+import { PasswordHashService } from 'src/infra/password_hash/passwordHash.service';
 import { Logger } from 'winston';
 import { formatValidationErrors } from '../../../common/response/validation-unique-error.helper';
-import { PasswordHashService } from '../../../helpers/password_hash/passwordHash.service';
-import { MailerService } from '../../../libs/mailer/mailer.service';
 import { UpdatePasswordDto, UpdateProfileDto } from '../dto/other.dto';
 import { Users } from '../entities/users.entity';
-import { ResetPasswordRequestRepository } from '../repositories/reset_password.repository';
-import { UsersCodeRepository } from '../repositories/user_code.repository';
 import { UsersRepository } from '../repositories/users.repository';
-import { ResetPasswordRequestService } from './resetPasswordRequest.service';
-import { UserCodeService } from './users_code.service';
 
 @Injectable()
 export class UsersService {
   /**
    * Service responsible for managing users
    */
-
-  readonly resetPasswordLink: string;
-  readonly landingPageLink: string;
 
   constructor(
     @Inject(WINSTON_MODULE_PROVIDER) readonly logger: Logger,
@@ -42,21 +30,8 @@ export class UsersService {
     readonly otherUtils: OtherUtils,
     readonly emailService: MailerService,
     readonly hashService: PasswordHashService,
-    readonly resetPasswordRequestRepository: ResetPasswordRequestRepository,
-    readonly userCodeService: UserCodeService,
     readonly errorHandlingService: ErrorHandlingService,
-    readonly userCodeRepository: UsersCodeRepository,
-    @Inject(forwardRef(() => ResetPasswordRequestService))
-    private readonly resetPasswordRequestService: ResetPasswordRequestService,
-    private readonly filesRepository: FilesRepository,
-    private readonly rolesRepository: RolesRepository,
-  ) {
-    this.configService.get<string>('LANDING_PAGE_LINK');
-    this.resetPasswordLink = this.configService.get<string>(
-      'RESET_PASSWORD_LINK',
-    );
-    this.landingPageLink = this.configService.get<string>('LANDING_PAGE_LINK');
-  }
+  ) {}
 
   /**
    * Sends an email to a specified recipient with the given subject and HTML content.
@@ -82,6 +57,26 @@ export class UsersService {
   }
 
   /**
+   * Handle password match
+   * @param password - The password
+   * @param user - The user object
+   * @returns Promise<Users> - The user object if the password matches, otherwise throws an error
+   */
+  private async checkPasswordWithHashed(password: string, user: Users) {
+    const isPasswordValid = await this.hashService.comparePassword(
+      password,
+      user.password,
+    );
+    if (!isPasswordValid) {
+      this.errorHandlingService.returnErrorOnBadRequest(
+        `Current Password Invalid`,
+        `Current Password Invalid`,
+      );
+    }
+    return user;
+  }
+
+  /**
    * Change user password
    * @param user - The user object
    * @param password - The new password
@@ -104,9 +99,8 @@ export class UsersService {
    */
   async getUserById(id: string): Promise<Users> {
     this.logger.info(`Retrieving user with ID: ${id}`);
-    const isUserExist = await this.findByCriteria(this.usersRepository, {
-      key: 'id',
-      value: id,
+    const isUserExist = await this.usersRepository.findOne({
+      where: { id },
     });
     if (!isUserExist) {
       this.logger.warn(`User with ID ${id} not found`);
@@ -155,7 +149,7 @@ export class UsersService {
       throw formatValidationErrors(validationErrors);
     }
 
-    const isUserExist = await this.retrieveUserById(userId);
+    const isUserExist = await this.getUserById(userId);
 
     await this.checkPasswordWithHashed(currentPassword, isUserExist);
     const hashedPassword = await this.hashService.hashPassword(newPassword);
@@ -170,7 +164,7 @@ export class UsersService {
     this.logger.info(
       `Updating profile with data: ${JSON.stringify(updateProfileDto)}`,
     );
-    const { fullname, username, email, userAvatar } = updateProfileDto;
+    const { username, email } = updateProfileDto;
 
     const isUserExist = await this.usersRepository.findOne({
       where: { id: userId },
@@ -205,115 +199,12 @@ export class UsersService {
       );
     }
 
-    let avatar: Files;
-
-    if (userAvatar) {
-      avatar = await this.filesRepository.findOne({
-        where: { path: userAvatar },
-      });
-    }
-
     await this.usersRepository.update(
       { id: userId },
       {
-        fullname: fullname ?? isUserExist.fullname,
         username: username ?? isUserExist.username,
         email: email ?? isUserExist.email,
-        avatar: avatar ?? isUserExist.avatar,
       },
     );
-  }
-
-  async getAllUsers(
-    userId: string,
-    page: number,
-    limit: number,
-    query: string,
-    department: string,
-    role: string,
-    status,
-  ) {
-    this.logger.info(`Retrieving all users`);
-    await this.isAdmin(userId);
-
-    if (department) {
-      const isValidDepartment = await this.validateUUIDs([department]);
-
-      if (!isValidDepartment) {
-        this.errorHandlingService.returnErrorOnNotFound(
-          `Department id not valid`,
-          `Department id not valid`,
-        );
-      }
-    }
-
-    if (role) {
-      const isValidRole = await this.validateUUIDs([role]);
-
-      if (!isValidRole) {
-        this.errorHandlingService.returnErrorOnNotFound(
-          `Role id not valid`,
-          `Role id not valid`,
-        );
-      }
-    }
-
-    if (status) {
-      const isValidStatus = Object.values(UserStatus).includes(
-        status as UserStatus,
-      );
-
-      if (!isValidStatus) {
-        this.errorHandlingService.returnErrorOnNotFound(
-          `Status not valid`,
-          `Status not valid`,
-        );
-      }
-    }
-
-    const users = await this.usersRepository.find({
-      where: {
-        role: { id: role },
-        status: status,
-      },
-      relations: ['role', 'department', 'avatar'],
-    });
-
-    let transformData = users.map((user) => {
-      return {
-        id: user.id,
-        fullname: user.fullname,
-        username: user.username,
-        email: user.email,
-        isAuthorized: user.isAuthorized,
-        avatar: user.avatar.path ?? null,
-        role: {
-          id: user.role.id,
-          label: user.role.label,
-        },
-      };
-    });
-
-    if (query) {
-      transformData = transformData.filter((data) => {
-        const searchTermLower = query.toLowerCase();
-        return (
-          (data.fullname &&
-            data.fullname.toLowerCase().includes(searchTermLower)) ||
-          (data.username &&
-            data.username.toLowerCase().includes(searchTermLower)) ||
-          (data.email && data.email.toLowerCase().includes(searchTermLower))
-        );
-      });
-    }
-
-    const paginatedData = transformData.slice((page - 1) * limit, page * limit);
-
-    return {
-      data: paginatedData,
-      total: transformData.length,
-      page,
-      limit,
-    };
   }
 }
