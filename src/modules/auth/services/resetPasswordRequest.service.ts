@@ -25,7 +25,7 @@ export class ResetPasswordRequestService {
    * @returns void if the request is valid
    * @private Throws an error if the request is invalid
    */
-  private validateRequestDates(request: ResetPasswordRequest) {
+  private async validateRequestDates(request: ResetPasswordRequest) {
     const now = new Date();
 
     if (request.delayDate && request.delayDate > now) {
@@ -33,7 +33,7 @@ export class ResetPasswordRequestService {
       const hours = Math.floor(timeDiff / (1000 * 60 * 60));
       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
 
-      this.authService.resetPasswordRequestRepository.update(
+      await this.authService.resetPasswordRequestRepository.update(
         { id: request.id },
         { count: 1 },
       );
@@ -104,7 +104,7 @@ export class ResetPasswordRequestService {
       });
 
     if (existingRequest) {
-      this.validateRequestDates(existingRequest);
+      await this.validateRequestDates(existingRequest);
 
       existingRequest.count += 1;
       existingRequest.expireAt = passwordExpireAt;

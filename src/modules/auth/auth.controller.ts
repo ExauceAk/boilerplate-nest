@@ -20,6 +20,7 @@ import { AuthService } from './services/auth.service';
 import { ResetPasswordRequestService } from './services/resetPasswordRequest.service';
 import { Users } from '../users/entities/users.entity';
 import { EmailDto, ResetPasswordDto } from '../users/dto/other.dto';
+import { UserDecorator } from 'src/common/decorators/user.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -45,8 +46,8 @@ export class AuthController {
     status: 401,
     description: 'Unauthorized',
   })
-  async getUserFromToken(@Request() req: any) {
-    return this.authService.getCurrentUser(req.user.id);
+  async getUserFromToken(@UserDecorator() user: Users) {
+    return this.authService.getCurrentUser(user.id);
   }
 
   @Post('register')

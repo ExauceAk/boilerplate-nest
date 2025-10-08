@@ -58,7 +58,7 @@ export class UserCodeService {
     const isUserCodeExist = await this.getUserCodeByUserEmail(email);
     if (isUserCodeExist.expireAt < new Date()) {
       this.authService.logger.error(
-        `User code has expired at ${isUserCodeExist.expireAt}`,
+        `User code has expired at ${isUserCodeExist.expireAt.toISOString()}`,
       );
       throw new BadRequestException('OTP expired');
     }

@@ -1,18 +1,11 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Patch,
-  Req,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { UserDecorator } from 'src/common/decorators/user.decorator';
 import { JwtAuthGuard } from '../../common/guards/auth.guard';
 import { UpdatePasswordDto, UpdateProfileDto } from './dto/other.dto';
 import { Users } from './entities/users.entity';
@@ -39,8 +32,8 @@ export class UsersController {
     status: 401,
     description: 'Unauthorized',
   })
-  async getUserFromToken(@Request() req: any) {
-    return this.usersService.getUserById(req.user.id);
+  async getUserFromToken(@UserDecorator() user: Users) {
+    return this.usersService.getUserById(user.id);
   }
 
   @Patch('update-password')
@@ -60,10 +53,10 @@ export class UsersController {
     description: 'Unauthorized.',
   })
   async updatePassword(
-    @Req() req,
+    @UserDecorator() user: Users,
     @Body() updatePasswordDto: UpdatePasswordDto,
   ) {
-    return this.usersService.updatePassword(req.user.id, updatePasswordDto);
+    return this.usersService.updatePassword(user.id, updatePasswordDto);
   }
 
   @Patch('update-profile')
@@ -82,7 +75,10 @@ export class UsersController {
     status: 401,
     description: 'Unauthorized.',
   })
-  async updateProfile(@Req() req, @Body() updateProfileDto: UpdateProfileDto) {
-    return this.usersService.updateProfile(req.user.id, updateProfileDto);
+  async updateProfile(
+    @UserDecorator() user: Users,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.usersService.updateProfile(user.id, updateProfileDto);
   }
 }

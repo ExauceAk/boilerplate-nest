@@ -9,7 +9,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { ErrorHandlingService } from 'src/common/response/errorHandler.service';
 import OtherUtils from 'src/common/utils/tools';
@@ -36,6 +36,8 @@ export class AuthService {
 
   readonly resetPasswordLink: string | undefined;
   readonly landingPageLink: string | undefined;
+  readonly expirationTime: number | undefined;
+  readonly secret: string | undefined;
 
   constructor(
     @Inject(WINSTON_MODULE_PROVIDER) readonly logger: Logger,
@@ -56,6 +58,8 @@ export class AuthService {
       'RESET_PASSWORD_LINK',
     );
     this.landingPageLink = this.configService.get<string>('LANDING_PAGE_LINK');
+    this.expirationTime = this.configService.get<number>('JWT_EXPIRATION_TIME');
+    this.secret = this.configService.get<string>('JWT_SECRET');
   }
 
   /**
@@ -81,31 +85,23 @@ export class AuthService {
     }
   }
 
-  /**
-   * Verifies if a given username is available (i.e., not already in use).
-   * Searches for the username in the user repository using the `findByCriteria` method.
-   * Returns `true` if the username is available, otherwise returns `false`.
-   */
-  async findByCriteria(
-    repository: any,
-    criteria: { key: string; value: string },
-    relations?: string[],
-  ): Promise<any> {
-    const { key, value } = criteria;
-    return await repository.findOne({
-      where: { [key]: value.trim(), deleted: false },
-      relations: relations,
-    });
-  }
-
   /** Generate a JWT token
    * @param user - The user object
    * @returns string - The generated JWT token
    */
-  private generateToken(user: Users) {
+  private generateToken(user: Users): string {
     const payload = { email: user.email, id: user.id };
-    return jwt.sign(payload, this.configService.getOrThrow('JWT_SECRET'), {
-      expiresIn: this.configService.get('JWT_EXPIRATION_TIME'),
+
+    if (!this.secret || !this.expirationTime) {
+      this.errorHandlingService.returnErrorOnBadRequest(
+        `JWT_SECRET or JWT_EXPIRATION_TIME is not set`,
+        `JWT_SECRET or JWT_EXPIRATION_TIME is not set`,
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return jwt.sign(payload, this.secret, {
+      expiresIn: this.expirationTime,
     });
   }
 
@@ -156,7 +152,7 @@ export class AuthService {
    * @param user - The user object
    * @returns Promise<{ user: Users; token: string }> - The user object and the generated token
    */
-  async generateUserTokenResponse(user: Users) {
+  generateUserTokenResponse(user: Users) {
     const token = this.generateToken(user);
     return { token };
   }
@@ -259,7 +255,7 @@ export class AuthService {
     }
 
     await this.checkPasswordWithHashed(password, user);
-    return await this.generateUserTokenResponse(user);
+    return this.generateUserTokenResponse(user);
   }
 
   /**
