@@ -6,7 +6,7 @@ import { DatabaseModule } from 'src/infra/database/database.module';
 import { MailerModule } from 'src/infra/mailer/mailer.module';
 import { MailerService } from 'src/infra/mailer/mailer.service';
 import { PasswordHashService } from 'src/infra/password_hash/passwordHash.service';
-import { TokenVerify } from '../../common/guards/jwt.strategy';
+import { JwtStrategy } from '../../common/guards/jwt.strategy';
 import { ErrorHandlingService } from '../../common/response/errorHandler.service';
 import { Users } from '../users/entities/users.entity';
 import { UsersRepository } from '../users/repositories/users.repository';
@@ -37,12 +37,17 @@ import { UserCodeService } from './services/users_code.service';
     UsersRepository,
     MailerService,
     MailConfig,
-    TokenVerify,
+    JwtStrategy,
     ResetPasswordRequestRepository,
     ResetPasswordRequestService,
     ErrorHandlingService,
     OtherUtils,
   ],
-  exports: [AuthService, UsersCodeRepository, ResetPasswordRequestService],
+  exports: [
+    AuthService,
+    UsersCodeRepository,
+    ResetPasswordRequestService,
+    JwtStrategy,
+  ],
 })
 export class AuthModule {}
