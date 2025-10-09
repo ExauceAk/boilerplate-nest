@@ -13,22 +13,22 @@ import { Logger } from 'winston';
 export class ErrorHandlingService {
   constructor(@Inject(WINSTON_MODULE_PROVIDER) readonly logger: Logger) {}
 
-  returnErrorOnNotFound(loggerMessage: string, ErrorMessage: string) {
+  returnErrorOnNotFound(loggerMessage: string, ErrorMessage: string): never {
     this.logger.error(loggerMessage);
     throw new NotFoundException(ErrorMessage);
   }
 
-  returnErrorOnBadRequest(loggerMessage: string, ErrorMessage: string) {
+  returnErrorOnBadRequest(loggerMessage: string, ErrorMessage: string): never {
     this.logger.error(loggerMessage);
     throw new BadRequestException(ErrorMessage);
   }
 
-  returnErrorOnForbidden(loggerMessage: string, ErrorMessage: string) {
+  returnErrorOnForbidden(loggerMessage: string, ErrorMessage: string): never {
     this.logger.error(loggerMessage);
     throw new ForbiddenException(ErrorMessage);
   }
 
-  returnErrorOnConflict(loggerMessage: string, ErrorMessage: string) {
+  returnErrorOnConflict(loggerMessage: string, ErrorMessage: string): never {
     this.logger.error(loggerMessage);
     throw new ConflictException(ErrorMessage);
   }
