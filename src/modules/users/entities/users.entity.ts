@@ -17,4 +17,9 @@ export class Users extends AbstractEntity<Users> {
 
   @OneToOne(() => UsersCode, (userCode) => userCode.user)
   userCode: UsersCode;
+
+  constructor(entity: Partial<Users>) {
+    super(entity);
+    Object.assign(this, entity);
+  }
 }

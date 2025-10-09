@@ -4,6 +4,7 @@ import { LoggerModule } from 'src/common/logger/logger.module';
 import { ErrorHandlingService } from 'src/common/response/errorHandler.service';
 import { Users } from '../users/entities/users.entity';
 import { UsersRepository } from '../users/repositories/users.repository';
+import { AuthModule } from '../auth/auth.module';
 import { Notes } from './entities/notes.entity';
 import { NotesRepository } from './repositories/notes.repository';
 import { NotesController } from './notes.controller';
@@ -18,6 +19,7 @@ import { DatabaseModule } from 'src/infra/database/database.module';
       isGlobal: true,
     }),
     LoggerModule,
+    AuthModule,
   ],
   controllers: [NotesController],
   providers: [

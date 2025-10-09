@@ -47,11 +47,19 @@ export class NotesService {
     return this.notesRepository.save(notes);
   }
 
+  //Base relations required for transform notes data
+  baseNoteRelation = ['owner'];
+
+  /**
+   * Transform data
+   * @param data - The data to transform
+   * @returns
+   */
   private transformData(data: Notes) {
     return {
       id: data.id,
       name: data.label,
-      type: data.content,
+      content: data.content,
       owner: {
         id: data.owner.id,
         username: data.owner.username,
@@ -65,7 +73,10 @@ export class NotesService {
    * @returns Promise<Notes[]> - The found notes
    */
   async findAll(userId: string, page: number, limit: number, query: string) {
-    const notess = await this.notesRepository.find({});
+    //Get all notes from database
+    const notess = await this.notesRepository.find({
+      relations: [...this.baseNoteRelation],
+    });
 
     let transformData = notess.map((notes) => this.transformData(notes));
 
@@ -74,7 +85,7 @@ export class NotesService {
         const searchTermLower = query.toLowerCase();
         return (
           (data.name && data.name.toLowerCase().includes(searchTermLower)) ||
-          (data.type && data.type.toLowerCase().includes(searchTermLower))
+          (data.content && data.content.toLowerCase().includes(searchTermLower))
         );
       });
     }
