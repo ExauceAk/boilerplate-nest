@@ -16,4 +16,9 @@ export class ResetPasswordRequest extends AbstractEntity<ResetPasswordRequest> {
   @ManyToOne(() => Users, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'userId' })
   user: Users;
+
+  constructor(entity: Partial<ResetPasswordRequest>) {
+    super(entity);
+    Object.assign(this, entity);
+  }
 }

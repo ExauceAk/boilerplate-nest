@@ -22,4 +22,9 @@ export class UsersCode extends AbstractEntity<UsersCode> {
   @ManyToOne(() => Users, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'userId' })
   user: Users;
+
+  constructor(entity: Partial<UsersCode>) {
+    super(entity);
+    Object.assign(this, entity);
+  }
 }

@@ -12,4 +12,9 @@ export class Notes extends AbstractEntity<Notes> {
 
   @ManyToOne(() => Users, { nullable: false })
   owner: Users;
+
+  constructor(entity: Partial<Notes>) {
+    super(entity);
+    Object.assign(this, entity);
+  }
 }
