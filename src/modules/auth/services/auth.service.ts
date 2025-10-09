@@ -157,28 +157,6 @@ export class AuthService {
     return { token };
   }
 
-  async getCurrentUser(userId: string) {
-    this.logger.info(`Retrieving current user`);
-
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
-      relations: ['role', 'department', 'avatar'],
-    });
-
-    if (!user) {
-      this.errorHandlingService.returnErrorOnNotFound(
-        `User not found`,
-        `User not found`,
-      );
-    }
-
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-    };
-  }
-
   /**
    * Register a new user
    * @param registerUserDto

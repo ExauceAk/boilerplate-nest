@@ -1,26 +1,11 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Request,
-  UseGuards,
-  ValidationPipe,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/guards/auth.guard';
+import { Body, Controller, Post, ValidationPipe } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { EmailDto, ResetPasswordDto } from '../users/dto/other.dto';
+import { Users } from '../users/entities/users.entity';
 import { LoginUserDto } from './dto/login.dto';
 import { RegisterUserDto } from './dto/register.dto';
 import { AuthService } from './services/auth.service';
 import { ResetPasswordRequestService } from './services/resetPasswordRequest.service';
-import { Users } from '../users/entities/users.entity';
-import { EmailDto, ResetPasswordDto } from '../users/dto/other.dto';
-import { UserDecorator } from 'src/common/decorators/user.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -29,26 +14,6 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly resetPasswordRequestService: ResetPasswordRequestService,
   ) {}
-
-  @ApiBearerAuth('JWT')
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
-  @ApiOperation({
-    summary: 'Get the current user',
-    description: 'Get the current user',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Return the current user',
-    type: Users,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized',
-  })
-  async getUserFromToken(@UserDecorator() user: Users) {
-    return this.authService.getCurrentUser(user.id);
-  }
 
   @Post('register')
   @ApiOperation({
