@@ -81,7 +81,7 @@ export class NotesController {
     @UserDecorator() user: Users,
     @Query('query') query: string,
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 5,
+    @Query('limit') limit: number = 2000,
   ) {
     const validatedPage = Math.max(1, parseInt(page.toString(), 10) || 1);
     const validatedLimit = Math.min(
