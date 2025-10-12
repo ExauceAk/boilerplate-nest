@@ -3,12 +3,12 @@ import { IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateNotesDto {
   @ApiProperty({
-    description: 'The label of the notes',
-    example: 'Notes label ',
+    description: 'The name of the notes',
+    example: 'Notes name',
   })
-  @IsNotEmpty({ message: 'Label should be a string' })
-  @IsString({ message: 'Label should be a string' })
-  label: string;
+  @IsNotEmpty({ message: 'Name is required' })
+  @IsString({ message: 'Name should be a string' })
+  name: string;
 
   @ApiProperty({
     description: 'The content of the notes',

@@ -26,7 +26,7 @@ export class NotesService {
    * @returns Promise<Notes> - The created notes>
    */
   async create(createNotesDto: CreateNotesDto, userId: string) {
-    const { label, content } = createNotesDto;
+    const { name, content } = createNotesDto;
 
     const owner = await this.usersRepository.findOne({
       where: { id: userId },
@@ -40,7 +40,7 @@ export class NotesService {
     }
 
     const notes = new Notes({
-      label,
+      name,
       content,
       owner,
     });
@@ -58,7 +58,7 @@ export class NotesService {
   private transformData(data: Notes) {
     return {
       id: data.id,
-      name: data.label,
+      name: data.name,
       content: data.content,
       owner: {
         id: data.owner.id,
@@ -138,7 +138,7 @@ export class NotesService {
     updateNotesDto: UpdateNotesDto,
     userId: string,
   ): Promise<string> {
-    const { label, content } = updateNotesDto;
+    const { name, content } = updateNotesDto;
 
     const notes = await this.notesRepository.findOne({
       where: { id },
@@ -162,7 +162,7 @@ export class NotesService {
     await this.notesRepository.update(
       { id: notes.id },
       {
-        label: label || notes.label,
+        name: name || notes.name,
         content: content || notes.content,
       },
     );

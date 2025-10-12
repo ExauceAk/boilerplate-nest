@@ -5,7 +5,7 @@ import { Column, Entity, ManyToOne } from 'typeorm';
 @Entity('notes')
 export class Notes extends AbstractEntity<Notes> {
   @Column({ nullable: false })
-  label: string;
+  name: string;
 
   @Column({ nullable: true, type: 'text' })
   content: string;
