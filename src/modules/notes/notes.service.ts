@@ -76,6 +76,7 @@ export class NotesService {
     //Get all notes from database
     const notess = await this.notesRepository.find({
       relations: [...this.baseNoteRelation],
+      order: { createdAt: 'DESC' },
     });
 
     let transformData = notess.map((notes) => this.transformData(notes));
@@ -114,6 +115,7 @@ export class NotesService {
   async findOne(id: string) {
     const notes = await this.notesRepository.findOne({
       where: { id },
+      relations: [...this.baseNoteRelation],
     });
 
     if (!notes) {
